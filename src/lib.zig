@@ -293,7 +293,7 @@ pub fn forEach(input: []const u8, fn_call: foreach_op) !void {
     while (offset < input.len) {
         offset += try find_next_char(input[offset..]);
         switch (input[offset]) {
-            '[', '{', '"', '-', '0'...'9' => {
+            '[', '{', '"', '-', '0'...'9', 't', 'f' => {
                 const value = try get(input[offset..], .{});
                 fn_call(value, index);
                 offset += value.offset + value.bytes.len;
@@ -423,7 +423,7 @@ fn get_offset_by_index(input: []const u8, index: usize) Error!usize {
         }
 
         switch (input[offset]) {
-            '[', '{', '"', '-', '0'...'9' => {
+            '[', '{', '"', '-', '0'...'9', 't', 'f' => {
                 const value = try get(input[offset..], .{});
                 offset += value.offset + value.bytes.len;
             },
@@ -541,7 +541,7 @@ test "array with more keys 2" {
 
 fn print_name(value: Value, i: usize) void {
     const name = get(value.bytes, .{"name"}) catch unreachable;
-    std.log.warn("student{d} name: {s}", .{ i, name.bytes });
+    std.debug.print("student{d} name: {s}\n", .{ i, name.bytes });
 }
 
 test "readme example" {
