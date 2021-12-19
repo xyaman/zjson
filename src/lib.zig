@@ -1,11 +1,5 @@
 const std = @import("std");
 
-pub const OldValue = struct {
-    str: []const u8,
-    kind: ValueKind,
-    offset: usize,
-};
-
 const PathItem = union(enum) {
     key: []const u8,
     index: usize,
@@ -48,6 +42,7 @@ pub const ValueKind = enum {
     float,
     object,
     array,
+    @"null", // TODO: implement null
 };
 
 /// Represents a JSON block, such as
@@ -101,7 +96,7 @@ pub fn get(input: []const u8, path: anytype) Error!Value {
 
     // reads input until match path, or until it ends
     var cursor: usize = 0;
-    var key_matched = false;
+    var key_matched = keys.len == 0; // this way we can run the function without path, useful to get data type
     var depth: usize = 0;
 
     while (cursor < input.len) {
@@ -122,15 +117,6 @@ pub fn get(input: []const u8, path: anytype) Error!Value {
 
                 // we are at the end, so we return current block
                 if (key_matched and depth == keys.len) {
-                    const block = try read_block(input[cursor..], '{', '}');
-                    return Value{
-                        .bytes = block.bytes,
-                        .kind = .object,
-                        .offset = cursor,
-                    };
-                }
-
-                if (keys.len == 0) {
                     const block = try read_block(input[cursor..], '{', '}');
                     return Value{
                         .bytes = block.bytes,
@@ -198,7 +184,6 @@ pub fn get(input: []const u8, path: anytype) Error!Value {
             '"' => {
                 // parse double quote block
                 const value = try read_string(input[cursor..]);
-                cursor += value.offset + 1;
 
                 // it means we are at the end
                 if (key_matched and depth == keys.len) {
@@ -209,21 +194,25 @@ pub fn get(input: []const u8, path: anytype) Error!Value {
                     };
                 }
 
+                cursor += value.offset + 1;
+
                 const next_cursor = try find_next_char(input[cursor..]);
 
-                // it means is a key (we read one next char)
+                // if (input[cursor + next_cursor] == ':' and keys.len > 0) not works according the compiler
                 if (input[cursor + next_cursor] == ':') {
-                    cursor += next_cursor;
+                    if (keys.len > 0) {
+                        cursor += next_cursor;
 
-                    // here only keys works
-                    const key = switch (keys[depth - 1]) {
-                        .key => |v| v,
-                        else => return Error.KeyNotFound,
-                    };
+                        // here only keys works
+                        const key = switch (keys[depth - 1]) {
+                            .key => |v| v,
+                            else => return Error.KeyNotFound,
+                        };
 
-                    // compare key with corresponding key in path param
-                    if (std.mem.eql(u8, value.bytes, key)) {
-                        key_matched = true;
+                        // compare key with corresponding key in path param
+                        if (std.mem.eql(u8, value.bytes, key)) {
+                            key_matched = true;
+                        }
                     }
                 }
             },
@@ -304,25 +293,10 @@ pub fn forEach(input: []const u8, fn_call: foreach_op) !void {
     while (offset < input.len) {
         offset += try find_next_char(input[offset..]);
         switch (input[offset]) {
-            '[' => {
-                const block = try read_block(input[offset..], '[', ']');
-                fn_call(Value{ .bytes = block.bytes, .kind = .array, .offset = offset }, index);
-                offset += block.offset + 1; // +1 includes ]
-            },
-            '{' => {
-                const block = try read_block(input[offset..], '{', '}');
-                fn_call(Value{ .bytes = block.bytes, .kind = .object, .offset = offset }, index);
-                offset += block.offset + 1; // +1 includes }
-            },
-            '"' => {
-                const block = try read_string(input[offset..]);
-                fn_call(Value{ .bytes = block.bytes, .kind = .string, .offset = offset }, index);
-                offset += block.offset; // +1 includes "
-            },
-            '-', '0'...'9' => {
-                const block = read_number(input[offset..]);
-                fn_call(Value{ .bytes = block.inner, .kind = block.kind, .offset = offset }, index);
-                offset += block.offset;
+            '[', '{', '"', '-', '0'...'9' => {
+                const value = try get(input[offset..], .{});
+                fn_call(value, index);
+                offset += value.offset + value.bytes.len;
             },
             ',' => {
                 offset += 1;
@@ -449,26 +423,15 @@ fn get_offset_by_index(input: []const u8, index: usize) Error!usize {
         }
 
         switch (input[offset]) {
-            '[' => {
-                const block = try read_block(input[offset..], '[', ']');
-                offset += block.offset + 1; // +1 includes ]
+            '[', '{', '"', '-', '0'...'9' => {
+                const value = try get(input[offset..], .{});
+                offset += value.offset + value.bytes.len;
             },
             // always at the end
             ']' => {
                 offset += 1;
             },
-            '{' => {
-                const block = try read_block(input[offset..], '{', '}');
-                offset += block.offset + 1; // +1 includes }
-            },
-            '"' => {
-                const block = try read_string(input[offset..]);
-                offset += block.offset; // +1 includes "
-            },
-            '-', '0'...'9' => {
-                const block = read_number(input[offset..]);
-                offset += block.offset;
-            },
+
             ',' => {
                 offset += 1;
                 cursor_index += 1;
