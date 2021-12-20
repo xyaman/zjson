@@ -28,9 +28,9 @@ const lastname = try get(input, .{ "student", 1, "lastname" });
 
 
 // Iterates an array
-fn print_name(value: Value, i: usize) void {
+fn print_name(value: Value, _: usize) void {
     const name = get(value.bytes, .{"name"}) catch unreachable;
-    std.debug.log("student{d} name: {s}", .{ i, name.bytes });
+    std.debug.log("student name: {s}", .{ name.bytes });
 }
 
 const students = try get(input, .{"student"});
@@ -38,5 +38,13 @@ try forEach(students.bytes, print_name);
 // prints 
 // "student0 name: Tom"
 // "student1 name: Nick"
+
+
+// this is the same as
+var iter = try zjson.ArrayIterator(students);
+while(try iter.next()) |s| {
+    const name = get(value.bytes, .{"name"}) catch unreachable;
+    std.debug.log("student name: {s}", .{ name.bytes });
+}
 ```
 
