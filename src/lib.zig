@@ -1,4 +1,5 @@
 const std = @import("std");
+const ArrayIterator = @import("array.zig").ArrayIterator;
 
 const PathItem = union(enum) {
     key: []const u8,
@@ -53,7 +54,7 @@ const Block = struct {
 };
 
 /// Returns offset of the next significant char
-fn find_next_char(input: []const u8) !usize {
+pub fn find_next_char(input: []const u8) !usize {
     var offset: usize = 0;
 
     // advances until finds a valid char
@@ -441,6 +442,10 @@ fn get_offset_by_index(input: []const u8, index: usize) Error!usize {
     }
 
     return Error.IndexNotFound;
+}
+
+test " " {
+    std.testing.refAllDecls(@This());
 }
 
 test "one level, only string" {
