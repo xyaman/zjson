@@ -234,43 +234,37 @@ pub fn get(input: []const u8, path: anytype) Error!Value {
 
             // boolean
             't' => {
-                // you cant reach this point unless is a key value
-                if (!key_matched) {
-                    return Error.InvalidJSON;
-                }
-
-                if (depth < keys.len) {
-                    return Error.KeyNotFound;
-                }
-
                 const offset = (try read_until(input[cursor..], 'e')) + 1;
-                if (std.mem.eql(u8, input[cursor .. cursor + offset], "true")) {
-                    return Value{
-                        .bytes = input[cursor .. cursor + offset],
-                        .kind = .boolean,
-                        .offset = cursor + offset,
-                    };
+                const is_valid = std.mem.eql(u8, input[cursor .. cursor + offset], "true");
+
+                if (is_valid) {
+                    if (key_matched) {
+                        return Value{
+                            .bytes = input[cursor .. offset + cursor],
+                            .kind = .boolean,
+                            .offset = cursor + offset,
+                        };
+                    }
+                    cursor += offset;
+                    continue;
                 }
 
                 return Error.InvalidJSON;
             },
             'f' => {
-                // you cant reach this point unless is a key value
-                if (!key_matched) {
-                    return Error.InvalidJSON;
-                }
-
-                if (depth < keys.len) {
-                    return Error.KeyNotFound;
-                }
-
                 const offset = (try read_until(input[cursor..], 'e')) + 1;
-                if (std.mem.eql(u8, input[cursor .. offset + cursor], "false")) {
-                    return Value{
-                        .bytes = input[cursor .. offset + cursor],
-                        .kind = .boolean,
-                        .offset = cursor + offset,
-                    };
+                const is_valid = std.mem.eql(u8, input[cursor .. cursor + offset], "false");
+
+                if (is_valid) {
+                    if (key_matched) {
+                        return Value{
+                            .bytes = input[cursor .. offset + cursor],
+                            .kind = .boolean,
+                            .offset = cursor + offset,
+                        };
+                    }
+                    cursor += offset;
+                    continue;
                 }
 
                 return Error.InvalidJSON;
@@ -324,6 +318,11 @@ fn read_block(input: []const u8, start: u8, end: u8) Error!Block {
 
     // now we read until find close delimiter
     while (offset < input.len and input[offset] != end) {
+        if (input[offset] == start) {
+            var block = try read_block(input[offset..], start, end);
+            offset += block.offset;
+        }
+
         offset += 1;
     }
 
