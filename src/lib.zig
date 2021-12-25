@@ -1,5 +1,6 @@
 const std = @import("std");
-const ArrayIterator = @import("array.zig").ArrayIterator;
+
+pub const ArrayIterator = @import("array.zig").ArrayIterator;
 
 const PathItem = union(enum) {
     key: []const u8,
