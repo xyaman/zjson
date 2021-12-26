@@ -11,7 +11,7 @@ pub const ArrayIterator = struct {
 
     const Self = @This();
 
-    pub fn new(value: Value) !ArrayIterator {
+    pub fn init(value: Value) !ArrayIterator {
         if (value.kind != .array) {
             return error.InvalidValue;
         }
@@ -57,7 +57,7 @@ test "readme with array iterator" {
     ;
 
     const students = try lib.get(input, .{"student"});
-    var iter = try ArrayIterator.new(students);
+    var iter = try ArrayIterator.init(students);
 
     while (try iter.next()) |s| {
         const name = lib.get(s.bytes, .{"name"}) catch unreachable;
