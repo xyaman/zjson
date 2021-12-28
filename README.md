@@ -1,11 +1,18 @@
 # zjson
 
 A very tiny json library, it allows you to get a json value from a path.
-Inspired by [jsonparser](https://github.com/buger/jsonparser) a Go library.
+Inspired by [jsonparser](https://github.com/buger/jsonparser), a Go library.
 
-## Example:
+This library is useful when you dont want to parse whole JSON file, or when
+the structure is to complex to parse to structs. It **allocates no memory**.
 
-```rs
+> This library is still WIP, the API might change. There can be some bugs as it's not fully tested.
+
+## API usage:
+
+Here there is a basic example.
+
+```zig
 const input =
     \\ {
     \\   "student": [
@@ -24,7 +31,7 @@ const input =
 ;
 
 const lastname = try get(input, .{ "student", 1, "lastname" });
-// prints Thameson
+// Thameson
 
 
 // Iterates an array
@@ -32,10 +39,11 @@ const students = try get(input, .{"student"});
 
 var iter = try zjson.ArrayIterator(students);
 while(try iter.next()) |s| {
-    const name = get(value.bytes, .{"name"}) catch unreachable;
-    std.debug.log("student name: {s}", .{ name.bytes });
+    const name = try get(value.bytes, .{"name"}); 
+    std.debug.print("student name: {s}\n", .{name.bytes});
 }
-// "student0 name: Tom"
-// "student1 name: Nick"
+// "student name: Tom"
+// "student name: Nick"
 ```
 
+For more usage examples, you can check [ytmusic-zig](https://github.com/xyaman/ytmusic-zig).
