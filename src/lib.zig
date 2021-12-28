@@ -32,7 +32,7 @@ pub const Value = struct {
             return false;
         }
 
-        return Error.InvalidTypeCast;
+        return Error.NotABoolean;
     }
 };
 
@@ -261,6 +261,31 @@ pub fn get(input: []const u8, path: anytype) Error!Value {
                         return Value{
                             .bytes = input[cursor .. offset + cursor],
                             .kind = .boolean,
+                            .offset = cursor + offset,
+                        };
+                    }
+                    cursor += offset;
+                    continue;
+                }
+
+                return Error.InvalidJSON;
+            },
+            'n' => {
+                // not pretty
+                var offset: usize = undefined;
+                if (cursor + 4 < input.len) {
+                    offset = 4;
+                } else {
+                    return Error.InvalidJSON;
+                }
+
+                const is_valid = std.mem.eql(u8, input[cursor .. cursor + offset], "null");
+
+                if (is_valid) {
+                    if (key_matched) {
+                        return Value{
+                            .bytes = input[cursor .. offset + cursor],
+                            .kind = .@"null",
                             .offset = cursor + offset,
                         };
                     }
@@ -531,10 +556,11 @@ test "array with more keys 2" {
         \\ {
         \\   "key": [
         \\      {
-        \\          "value": 6
+        \\          "value": 6,
         \\      },
         \\      {
         \\          "value": 8
+        \\          "value2": null
         \\      }
         \\   ]
         \\ }
@@ -542,6 +568,8 @@ test "array with more keys 2" {
 
     var value1 = try get(input, .{ "key", 1, "value" });
     try std.testing.expect(std.mem.eql(u8, value1.bytes, "8"));
+    var value2 = try get(input, .{ "key", 1, "value2" });
+    try std.testing.expect(value2.kind == .@"null");
 }
 
 fn print_name(value: Value, i: usize) void {
