@@ -302,36 +302,6 @@ pub fn get(input: []const u8, path: anytype) Error!Value {
     return Error.InvalidJSON;
 }
 
-pub const foreach_op = fn (value: Value, index: usize) void;
-pub fn forEach(input: []const u8, fn_call: foreach_op) !void {
-    // we expect input to be an array
-    if (input.len < 1 or input[0] != '[' or input[input.len - 1] != ']') {
-        return Error.InvalidBlock;
-    }
-
-    var offset: usize = 1;
-    var index: usize = 0;
-    while (offset < input.len) {
-        offset += try find_next_char(input[offset..]);
-        switch (input[offset]) {
-            '[', '{', '"', '-', '0'...'9', 't', 'f' => {
-                const value = try get(input[offset..], .{});
-                fn_call(value, index);
-                offset += value.offset + value.bytes.len;
-            },
-            ',' => {
-                offset += 1;
-                index += 1;
-            },
-            // always at the end
-            ']' => {
-                offset += 1;
-            },
-            else => @panic("Not supported yet"),
-        }
-    }
-}
-
 fn read_block(input: []const u8, start: u8, end: u8) Error!Block {
 
     // first we should start block, is a valid block
@@ -570,35 +540,4 @@ test "array with more keys 2" {
     try std.testing.expect(std.mem.eql(u8, value1.bytes, "8"));
     var value2 = try get(input, .{ "key", 1, "value2" });
     try std.testing.expect(value2.kind == .@"null");
-}
-
-fn print_name(value: Value, i: usize) void {
-    const name = get(value.bytes, .{"name"}) catch unreachable;
-    std.debug.print("student{d} name: {s}\n", .{ i, name.bytes });
-}
-
-test "readme example" {
-    const input =
-        \\ {
-        \\   "student": [
-        \\     {
-        \\       "id": "01",
-        \\       "name": "Tom",
-        \\       "lastname": "Price"
-        \\     },
-        \\     {
-        \\       "id": "02",
-        \\       "name": "Nick",
-        \\       "lastname": "Thameson"
-        \\     }
-        \\   ]
-        \\ }
-    ;
-
-    const name = try get(input, .{ "student", 1, "lastname" });
-    try std.testing.expect(std.mem.eql(u8, name.bytes, "Thameson"));
-
-    const students = try get(input, .{"student"});
-
-    try forEach(students.bytes, print_name);
 }
